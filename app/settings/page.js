@@ -23,7 +23,7 @@ export default function SettingsPage() {
     const result = await addLinkToMasterSheetAction(url);
     
     if (result.success) {
-      setMessage('✅ 마스터 시트에 성공적으로 추가되었습니다! (대시보드 반영까지 최대 5분 소요)');
+      setMessage('✅ 마스터 시트에 성공적으로 추가되었습니다! (대시보드에 즉시 반영됨)');
       setUrl('');
     } else {
       setMessage(`❌ 실패: ${result.message}`);
