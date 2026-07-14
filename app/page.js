@@ -22,12 +22,13 @@ export default function Home() {
     }
 
     // 2. 서버에서 마스터 시트에 등록된 링크 목록 가져오기
-    const links = await getMasterSheetLinksAction();
+    const allLinks = await getMasterSheetLinksAction();
+    const activeLinks = allLinks.filter(l => !l.hidden);
     
-    if (links && links.length > 0) {
+    if (activeLinks && activeLinks.length > 0) {
       setHasMasterSheet(true);
       // 3. 백그라운드에서 최신 데이터 가져오기
-      const data = await fetchAllReportsAction(links);
+      const data = await fetchAllReportsAction(activeLinks);
       
       // 4. 최신 데이터로 캐시 갱신 및 화면 갱신
       if (data && data.length > 0) {
@@ -35,7 +36,7 @@ export default function Home() {
         processAndSetReports(data);
       }
     } else {
-      // 마스터 시트가 설정되지 않았거나 링크가 없는 경우
+      // 마스터 시트가 설정되지 않았거나 활성 링크가 없는 경우
       setHasMasterSheet(false);
       if (!cached || cached.length === 0) {
         setReports([]);
@@ -70,14 +71,13 @@ export default function Home() {
         const existing = groupedMap.get(key);
         existing.reportCount += 1;
         
-        // 나중에 추출된 정보(보통 최신 시트)가 이름 형식을 더 잘 지켰을 수 있으므로
-        // 한글 이름이나 영어 이름이 새롭게 발견되면 업데이트합니다.
+        // 처음(보통 최신) 탭의 정보를 우선시하되, 비어있을 경우에만 과거 탭의 정보로 채웁니다.
         if (!existing.metaKoreanName || (r.koreanName && r.koreanName !== existing.metaKoreanName && !existing.metaKoreanName.match(/[가-힣]/))) {
           existing.metaKoreanName = r.koreanName || r.student;
         }
-        if (r.englishName) existing.metaEnglishName = r.englishName;
-        if (r.school) existing.metaSchool = r.school;
-        if (r.grade) existing.metaGrade = r.grade;
+        if (!existing.metaEnglishName && r.englishName) existing.metaEnglishName = r.englishName;
+        if (!existing.metaSchool && r.school) existing.metaSchool = r.school;
+        if (!existing.metaGrade && r.grade) existing.metaGrade = r.grade;
       }
     });
 
@@ -96,16 +96,13 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-10 gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            학생 대시보드
+            렘프 안푸지점
           </h1>
-          <p className="text-gray-500">마스터 시트에 등록된 학생 목록과 가장 최근 리포트를 확인하세요.</p>
+          <p className="text-gray-500">학생 목록과 가장 최근 리포트를 확인하세요.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-3">
-          {/* Master Sheet Mange Button */}
-          <Link href="/settings" className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-red-300 text-gray-700 hover:text-red-500 py-3 px-5 rounded-xl text-sm font-medium transition-all shadow-sm">
-            <Settings className="w-4 h-4" /> 마스터 시트 관리
-          </Link>
+
 
           {/* Search Input */}
           <div className="relative w-full sm:w-64">
@@ -141,7 +138,7 @@ export default function Home() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((report, idx) => (
-            <Link href={`/student/${encodeURIComponent(report.metaKoreanName)}`} key={report.id + idx}>
+            <Link href={`/student/${encodeURIComponent(btoa(report.url))}`} key={report.url + idx}>
               <div className="glass-card p-6 h-full flex flex-col group cursor-pointer animate-fade-in border border-gray-100" style={{ animationDelay: `${idx * 0.05}s` }}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
