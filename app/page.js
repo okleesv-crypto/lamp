@@ -51,12 +51,11 @@ export default function Home() {
   }, []);
 
   function processAndSetReports(data) {
-    // 마스터 시트에서는 학생 정보를 따로 관리하지 않고 리포트에서 추출한 정보만 사용합니다.
+    // 1 URL = 1 학생이므로 URL을 기준으로 완벽하게 그룹화합니다.
     const groupedMap = new Map();
     data.forEach(r => {
-      // 리포트에서 추출된 koreanName을 기준으로 그룹화합니다.
-      const key = r.koreanName || r.student;
-      if (!key) return; // 이름이 없는 데이터는 무시
+      const key = r.url;
+      if (!key) return; // URL이 없는 경우 무시
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
@@ -70,7 +69,13 @@ export default function Home() {
       } else {
         const existing = groupedMap.get(key);
         existing.reportCount += 1;
-        // 나중에 추출된 정보(더 최신일 가능성)로 메타데이터 업데이트
+        
+        // 나중에 추출된 정보(보통 최신 시트)가 이름 형식을 더 잘 지켰을 수 있으므로
+        // 한글 이름이나 영어 이름이 새롭게 발견되면 업데이트합니다.
+        if (!existing.metaKoreanName || (r.koreanName && r.koreanName !== existing.metaKoreanName && !existing.metaKoreanName.match(/[가-힣]/))) {
+          existing.metaKoreanName = r.koreanName || r.student;
+        }
+        if (r.englishName) existing.metaEnglishName = r.englishName;
         if (r.school) existing.metaSchool = r.school;
         if (r.grade) existing.metaGrade = r.grade;
       }
