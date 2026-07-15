@@ -13,38 +13,42 @@ export default function Home() {
   const [hasMasterSheet, setHasMasterSheet] = useState(true);
 
   const loadData = async () => {
-    // 1. 캐시된 데이터가 있으면 먼저 바로 렌더링 (초고속 로딩)
-    const cached = getCachedReports();
-    if (cached && cached.length > 0) {
-      processAndSetReports(cached);
-      setLoading(false);
-      setIsRefreshing(true);
-    }
+    try {
+      // 1. 캐시된 데이터가 있으면 먼저 바로 렌더링 (초고속 로딩)
+      const cached = getCachedReports();
+      if (cached && cached.length > 0) {
+        processAndSetReports(cached);
+        setLoading(false);
+        setIsRefreshing(true);
+      }
 
-    // 2. 서버에서 마스터 시트에 등록된 링크 목록 가져오기
-    const allLinks = await getMasterSheetLinksAction();
-    const activeLinks = allLinks.filter(l => l.status === '재원');
-    
-    if (activeLinks && activeLinks.length > 0) {
-      setHasMasterSheet(true);
-      // 3. 백그라운드에서 최신 데이터 가져오기
-      const data = await fetchAllReportsAction(activeLinks);
+      // 2. 서버에서 마스터 시트에 등록된 링크 목록 가져오기
+      const allLinks = await getMasterSheetLinksAction();
+      const activeLinks = allLinks.filter(l => l.status === '재원');
       
-      // 4. 최신 데이터로 캐시 갱신 및 화면 갱신
-      if (data && data.length > 0) {
-        setCachedReports(data);
-        processAndSetReports(data);
+      if (activeLinks && activeLinks.length > 0) {
+        setHasMasterSheet(true);
+        // 3. 백그라운드에서 최신 데이터 가져오기
+        const data = await fetchAllReportsAction(activeLinks);
+        
+        // 4. 최신 데이터로 캐시 갱신 및 화면 갱신
+        if (data && data.length > 0) {
+          setCachedReports(data);
+          processAndSetReports(data);
+        }
+      } else {
+        // 마스터 시트가 설정되지 않았거나 활성 링크가 없는 경우
+        setHasMasterSheet(false);
+        if (!cached || cached.length === 0) {
+          setReports([]);
+        }
       }
-    } else {
-      // 마스터 시트가 설정되지 않았거나 활성 링크가 없는 경우
-      setHasMasterSheet(false);
-      if (!cached || cached.length === 0) {
-        setReports([]);
-      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
     }
-    
-    setLoading(false);
-    setIsRefreshing(false);
   };
 
   useEffect(() => {
@@ -86,9 +90,9 @@ export default function Home() {
   }
 
   const filtered = reports.filter(r => 
-    r.metaKoreanName.includes(search) || 
-    r.metaEnglishName.toLowerCase().includes(search.toLowerCase()) ||
-    r.teacher.toLowerCase().includes(search.toLowerCase())
+    (r.metaKoreanName || '').includes(search) || 
+    (r.metaEnglishName || '').toLowerCase().includes(search.toLowerCase()) ||
+    (r.teacher || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
