@@ -23,7 +23,7 @@ export default function Home() {
 
     // 2. 서버에서 마스터 시트에 등록된 링크 목록 가져오기
     const allLinks = await getMasterSheetLinksAction();
-    const activeLinks = allLinks.filter(l => !l.hidden);
+    const activeLinks = allLinks.filter(l => l.status === '재원');
     
     if (activeLinks && activeLinks.length > 0) {
       setHasMasterSheet(true);
