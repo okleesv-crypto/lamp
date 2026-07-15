@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { fetchAllReportsAction, getMasterSheetLinksAction } from '@/lib/actions';
 import { getCachedReports, setCachedReports } from '@/lib/store';
 import Link from 'next/link';
-import { Search, BookOpen, User, Calendar, Plus, GraduationCap, Settings, ExternalLink } from 'lucide-react';
+import { Search, BookOpen, User, Calendar, Plus, GraduationCap, Settings, ExternalLink, RefreshCw } from 'lucide-react';
 
 export default function Home() {
   const [reports, setReports] = useState([]);
@@ -61,7 +61,7 @@ export default function Home() {
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
           ...r,
-          reportCount: 1,
+          reportCount: r.isPlaceholder ? 0 : 1,
           metaKoreanName: r.koreanName || r.student,
           metaEnglishName: r.englishName || '',
           metaSchool: r.school || '',
@@ -69,7 +69,7 @@ export default function Home() {
         });
       } else {
         const existing = groupedMap.get(key);
-        existing.reportCount += 1;
+        if (!r.isPlaceholder) existing.reportCount += 1;
         
         // 처음(보통 최신) 탭의 정보를 우선시하되, 비어있을 경우에만 과거 탭의 정보로 채웁니다.
         if (!existing.metaKoreanName || (r.koreanName && r.koreanName !== existing.metaKoreanName && !existing.metaKoreanName.match(/[가-힣]/))) {
@@ -102,7 +102,15 @@ export default function Home() {
         </div>
         
         <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-3">
-
+          {/* Refresh Button */}
+          <button
+            onClick={loadData}
+            disabled={isRefreshing}
+            className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-3 rounded-xl transition-colors font-medium shadow-sm w-full sm:w-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? '데이터 갱신 중...' : '데이터 새로고침'}
+          </button>
 
           {/* Search Input */}
           <div className="relative w-full sm:w-64">
