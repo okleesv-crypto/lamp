@@ -96,7 +96,7 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-10 gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            렘프 안푸지점
+            램프 안푸지점
           </h1>
           <p className="text-gray-500">학생 목록과 가장 최근 리포트를 확인하세요.</p>
         </div>

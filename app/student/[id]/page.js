@@ -8,24 +8,27 @@ import { ArrowLeft, BookOpen, MessageCircle, Calendar, User, Building, Graduatio
 export default function StudentPage() {
   const { id } = useParams();
   const router = useRouter();
-  const studentName = decodeURIComponent(id);
+  
+  // URL에서 base64 인코딩된 주소를 복호화합니다.
+  const targetUrl = typeof window !== 'undefined' ? atob(decodeURIComponent(id)) : '';
   
   const [reports, setReports] = useState([]);
-  const [studentMeta, setStudentMeta] = useState(null);
+  const [studentMeta, setStudentMeta] = useState({ koreanName: '로딩중...', englishName: '', school: '', grade: '' });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('progress');
   const [expandedBooks, setExpandedBooks] = useState({});
 
   useEffect(() => {
+    if (!targetUrl) return;
+
     async function load() {
       const links = await getMasterSheetLinksAction();
-      const meta = links.find(l => l.koreanName === studentName);
-      setStudentMeta(meta || { koreanName: studentName, englishName: '', school: '', grade: '' });
+      const currentLink = links.find(l => l.url === targetUrl);
 
       // 1. 캐시된 데이터로 즉시 렌더링
       const cached = getCachedReports();
       if (cached) {
-        processAndSet(cached, meta);
+        processAndSet(cached, currentLink);
         setLoading(false);
       }
 
@@ -33,19 +36,51 @@ export default function StudentPage() {
       const data = await fetchAllReportsAction(links);
       if (data && data.length > 0) {
         setCachedReports(data);
-        processAndSet(data, meta);
+        processAndSet(data, currentLink);
+      } else {
+        // 데이터가 비어있어도 링크 메타데이터는 업데이트
+        processAndSet([], currentLink);
       }
       setLoading(false);
     }
     load();
-  }, [studentName]);
+  }, [targetUrl]);
 
-  function processAndSet(data, meta) {
-    const studentReports = data.filter(r => 
-      r.student.includes(studentName) || 
-      (meta && meta.englishName && r.student.includes(meta.englishName))
-    );
+  function processAndSet(data, currentLink) {
+    const studentReports = data ? data.filter(r => r.url === targetUrl) : [];
     setReports(studentReports);
+    
+    // 학생 메타 데이터 추출
+    if (studentReports.length > 0) {
+      let latestKor = '';
+      let latestEng = '';
+      let latestSchool = '';
+      let latestGrade = '';
+      
+      studentReports.forEach(r => {
+        if (!latestKor || (r.koreanName && r.koreanName !== latestKor && !latestKor.match(/[가-힣]/))) {
+          latestKor = r.koreanName || r.student;
+        }
+        if (!latestEng && r.englishName) latestEng = r.englishName;
+        if (!latestSchool && r.school) latestSchool = r.school;
+        if (!latestGrade && r.grade) latestGrade = r.grade;
+      });
+      
+      setStudentMeta({
+        koreanName: currentLink?.name || latestKor || '알 수 없음',
+        englishName: currentLink?.engName || latestEng,
+        school: currentLink?.school || latestSchool,
+        grade: currentLink?.grade || latestGrade
+      });
+    } else {
+      setStudentMeta(prev => ({
+        ...prev,
+        koreanName: currentLink?.name || '등록된 리포트 없음',
+        englishName: currentLink?.engName || '',
+        school: currentLink?.school || '',
+        grade: currentLink?.grade || ''
+      }));
+    }
   }
 
   const toggleBook = (idx) => {
@@ -58,7 +93,7 @@ export default function StudentPage() {
   return (
     <main className="max-w-7xl mx-auto p-6 md:p-10 animate-fade-in">
       <button 
-        onClick={() => router.back()} 
+        onClick={() => router.push('/')} 
         className="flex items-center gap-2 text-gray-500 hover:text-red-500 font-medium transition-colors mb-8"
       >
         <ArrowLeft className="w-4 h-4" /> 뒤로 가기
@@ -66,16 +101,16 @@ export default function StudentPage() {
 
       <div className="glass-card p-6 md:p-8 mb-8 flex flex-col md:flex-row items-start md:items-center gap-6 border border-gray-200">
         <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center text-red-500 font-bold text-4xl shadow-inner border-4 border-white">
-          {studentName.charAt(0)}
+          {studentMeta.koreanName.charAt(0)}
         </div>
         <div className="flex-1">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 flex items-end gap-3">
-            {studentName} 
-            {studentMeta?.englishName && <span className="text-xl text-gray-400 font-normal">{studentMeta.englishName}</span>}
+            {studentMeta.koreanName} 
+            {studentMeta.englishName && <span className="text-xl text-gray-400 font-normal">{studentMeta.englishName}</span>}
           </h1>
           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            {studentMeta?.school && <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><Building className="w-4 h-4 text-gray-400"/> {studentMeta.school}</span>}
-            {studentMeta?.grade && <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><GraduationCap className="w-4 h-4 text-gray-400"/> {studentMeta.grade}</span>}
+            {studentMeta.school && <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><Building className="w-4 h-4 text-gray-400"/> {studentMeta.school}</span>}
+            {studentMeta.grade && <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><GraduationCap className="w-4 h-4 text-gray-400"/> {studentMeta.grade}</span>}
             <span className="flex items-center gap-1 bg-red-50 text-red-600 px-3 py-1 rounded-full font-medium">총 {reports.length}개의 리포트</span>
           </div>
         </div>
