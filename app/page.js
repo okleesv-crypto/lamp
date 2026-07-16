@@ -153,11 +153,11 @@ export default function Home() {
           {filtered.map((report, idx) => (
             <Link href={`/student/${encodeURIComponent(btoa(report.url))}`} key={report.url + idx}>
               <div className="glass-card p-6 h-full flex flex-col group cursor-pointer animate-fade-in border border-gray-100" style={{ animationDelay: `${idx * 0.05}s` }}>
-                <div className="flex justify-between items-start mb-4 gap-2">
+                <div className="flex justify-between items-center mb-4 gap-2">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-14 h-14 rounded-full bg-red-100 flex flex-col items-center justify-center text-red-600 shadow-inner shrink-0 px-1 overflow-hidden">
-                      <span className="text-[13px] font-bold leading-tight text-center">{report.metaSchool}</span>
-                      <span className="text-[13px] font-bold leading-tight text-center">{report.metaGrade}</span>
+                    <div className="w-14 h-14 rounded-full bg-red-100 flex flex-col items-center justify-center text-red-600 shadow-inner shrink-0 p-1 overflow-hidden">
+                      <span className="text-[13px] font-bold leading-tight text-center">{report.metaSchool?.trim()}</span>
+                      <span className="text-[13px] font-bold leading-tight text-center">{report.metaGrade?.trim()}</span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="text-2xl font-bold text-gray-900 group-hover:text-red-500 transition-colors flex items-end gap-2 truncate">

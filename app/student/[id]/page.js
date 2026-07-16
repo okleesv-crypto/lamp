@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { fetchAllReportsAction, getMasterSheetLinksAction } from '@/lib/actions';
 import { getCachedReports, setCachedReports } from '@/lib/store';
 import { ArrowLeft, BookOpen, MessageCircle, Calendar, User, Building, GraduationCap, ChevronDown, ChevronUp } from 'lucide-react';
+import { findTextbookLevel } from '@/lib/textbooks';
 
 export default function StudentPage() {
   const { id } = useParams();
@@ -100,8 +101,9 @@ export default function StudentPage() {
       </button>
 
       <div className="glass-card p-6 md:p-8 mb-8 flex flex-col md:flex-row items-start md:items-center gap-6 border border-gray-200">
-        <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center text-red-500 font-bold text-4xl shadow-inner border-4 border-white">
-          {studentMeta.koreanName.charAt(0)}
+        <div className="w-20 h-20 rounded-full bg-red-100 flex flex-col items-center justify-center text-red-500 shadow-inner border-4 border-white shrink-0 p-2 overflow-hidden">
+          <span className="text-sm font-bold leading-tight text-center">{studentMeta.school?.trim()}</span>
+          <span className="text-sm font-bold leading-tight text-center">{studentMeta.grade?.trim()}</span>
         </div>
         <div className="flex-1">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 flex items-end gap-3">
@@ -109,8 +111,6 @@ export default function StudentPage() {
             {studentMeta.englishName && <span className="text-xl text-gray-400 font-normal">{studentMeta.englishName}</span>}
           </h1>
           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            {studentMeta.school && <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><Building className="w-4 h-4 text-gray-400"/> {studentMeta.school}</span>}
-            {studentMeta.grade && <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><GraduationCap className="w-4 h-4 text-gray-400"/> {studentMeta.grade}</span>}
             <span className="flex items-center gap-1 bg-red-50 text-red-600 px-3 py-1 rounded-full font-medium">총 {reports.length}개의 리포트</span>
           </div>
         </div>
@@ -153,7 +153,14 @@ export default function StudentPage() {
               >
                 {/* Date */}
                 <div className="flex items-center gap-2 text-gray-800 font-bold min-w-[90px]">
-                  <Calendar className="w-5 h-5 text-red-500 shrink-0" /> {report.period}
+                  {report.type && report.type !== 'Report' && (
+                    <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md border ${report.type === 'Weekly' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                      {report.type}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4 text-red-500 shrink-0" /> {report.period}
+                  </span>
                 </div>
                 {/* Teacher */}
                 <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full whitespace-nowrap">
@@ -162,7 +169,48 @@ export default function StudentPage() {
                 {/* Textbook */}
                 <div className="flex items-center gap-2 text-sm text-gray-900 font-medium flex-1 w-full">
                   <BookOpen className="w-4 h-4 text-red-400 shrink-0" /> 
-                  <span>{report.book || '교재 미기재'}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{report.book || '교재 미기재'}</span>
+                    {(() => {
+                      const match = findTextbookLevel(report.book);
+                      if (match) {
+                        const colors = {
+                          L1: 'bg-green-100 text-green-700 border-green-200',
+                          L2: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                          L3: 'bg-teal-100 text-teal-700 border-teal-200',
+                          A1: 'bg-blue-100 text-blue-700 border-blue-200',
+                          A2: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                          A3: 'bg-violet-100 text-violet-700 border-violet-200',
+                          M1: 'bg-purple-100 text-purple-700 border-purple-200',
+                          M2: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+                          M3: 'bg-pink-100 text-pink-700 border-pink-200',
+                          P1: 'bg-orange-100 text-orange-700 border-orange-200',
+                          P2: 'bg-amber-100 text-amber-700 border-amber-200',
+                          P3: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                          Adult: 'bg-gray-100 text-gray-700 border-gray-200'
+                        };
+                        const colorClass = colors[match.level] || 'bg-gray-100 text-gray-700 border-gray-200';
+                        return (
+                          <span 
+                            className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md border ${colorClass} shadow-sm group relative cursor-help`}
+                            title={`매칭된 표 교재명: ${match.matchedName}`}
+                          >
+                            {match.level}
+                          </span>
+                        );
+                      } else if (report.book) {
+                        return (
+                          <span 
+                            className="px-1.5 py-0.5 text-[10px] font-bold rounded-md border bg-gray-100 text-gray-500 border-gray-200 shadow-sm cursor-help"
+                            title="정확한 매칭을 찾을 수 없습니다."
+                          >
+                            미분류
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </div>
                 
                 {/* Toggle Icon */}
