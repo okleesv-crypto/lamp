@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Link as LinkIcon, AlertCircle, CheckCircle, ExternalLink, Plus, Loader2, Trash2, User, Building, GraduationCap } from 'lucide-react';
 import { addLinkToMasterSheetAction, updateStudentStatusAction, getMasterSheetLinksAction, fetchAllReportsAction } from '@/lib/actions';
 import { getCachedReports, removeCachedReportsByUrl } from '@/lib/store';
+import { findTextbookLevel } from '@/lib/textbooks';
+import { BookOpen, Search } from 'lucide-react';
 
 export default function SettingsPage() {
   const [url, setUrl] = useState('');
@@ -12,6 +14,10 @@ export default function SettingsPage() {
   const [message, setMessage] = useState('');
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [activeTab, setActiveTab] = useState('students'); // 'students' or 'books'
+  const [reports, setReports] = useState([]);
+  const [customMap, setCustomMap] = useState({});
 
   // 검색어로 학생 목록 필터링
   const filteredStudents = students.filter(student => {
@@ -23,6 +29,14 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('customTextbookLevels');
+      if (stored) {
+        try {
+          setCustomMap(JSON.parse(stored));
+        } catch(e) {}
+      }
+    }
     loadStudents();
   }, []);
 
@@ -38,6 +52,8 @@ export default function SettingsPage() {
       if (!data || data.length === 0) {
          data = await fetchAllReportsAction(links);
       }
+      
+      setReports(data || []);
       
       // URL별로 메타데이터 그룹화
       const groupedMap = new Map();
@@ -126,6 +142,29 @@ export default function SettingsPage() {
     setIsDeleting(false);
   };
 
+  const handleAssignLevel = (book, level) => {
+    const newMap = { ...customMap, [book]: level };
+    setCustomMap(newMap);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customTextbookLevels', JSON.stringify(newMap));
+    }
+    // 레벨 지정 해제 기능
+    if (!level) {
+      const { [book]: _, ...rest } = newMap;
+      setCustomMap(rest);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('customTextbookLevels', JSON.stringify(rest));
+      }
+    }
+  };
+
+  const unmappedBooks = Array.from(new Set(reports.map(r => r.book).filter(b => !!b))).filter(b => {
+    if (customMap[b]) return false;
+    return !findTextbookLevel(b);
+  });
+
+  const levels = ['L1', 'L2', 'L3', 'A1', 'A2', 'A3', 'M1', 'M2', 'M3', 'P1', 'P2', 'P3', 'Adult'];
+
   return (
     <main className="max-w-4xl mx-auto p-6 md:p-10 animate-fade-in relative">
       {/* 전체 화면 로딩 오버레이 (상태 변경 중일 때) */}
@@ -136,10 +175,32 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">학생 추가 및 설정</h1>
-      <p className="text-gray-500 mb-10">
-        여기에 개별 학생의 구글 시트 링크를 붙여넣으면, 자동으로 마스터 시트에 등록됩니다.
-      </p>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">설정</h1>
+      
+      {/* Tabs */}
+      <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-8 max-w-md border border-gray-200">
+        <button 
+          onClick={() => setActiveTab('students')}
+          className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'students' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <User className="w-4 h-4" /> 학생 관리
+        </button>
+        <button 
+          onClick={() => setActiveTab('books')}
+          className={`flex-1 py-3 px-4 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'books' ? 'bg-white text-red-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <BookOpen className="w-4 h-4" /> 교재 레벨 매핑
+          {unmappedBooks.length > 0 && (
+            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{unmappedBooks.length}</span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === 'students' && (
+        <>
+          <p className="text-gray-500 mb-6">
+            여기에 개별 학생의 구글 시트 링크를 붙여넣으면, 자동으로 마스터 시트에 등록됩니다.
+          </p>
 
       {/* 새 링크 추가 폼 */}
       <form onSubmit={handleAdd} className="glass-card p-8 mb-10 border border-gray-100 shadow-sm relative overflow-hidden">
@@ -278,8 +339,88 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {activeTab === 'books' && (
+        <div className="glass-card p-8 mb-10 border border-gray-100 shadow-sm animate-fade-in">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-2">
+              <AlertCircle className="w-6 h-6 text-orange-500" /> 미분류 교재 목록 ({unmappedBooks.length}개)
+            </h2>
+            <p className="text-sm text-gray-500">
+              선생님들이 오타를 냈거나 약어로 적어서 레벨 뱃지가 매칭되지 않은 교재들입니다. 직접 레벨을 지정해 주시면 앞으로 동일한 이름이 나올 때 자동으로 매칭됩니다.
+            </p>
+          </div>
+
+          {unmappedBooks.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="text-gray-700 font-medium text-lg">모든 교재가 완벽하게 매칭되었습니다!</p>
+              <p className="text-sm text-gray-500 mt-1">현재 미분류된 교재가 없습니다.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {unmappedBooks.map((book, idx) => (
+                <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-red-200 transition-colors">
+                  <div className="flex items-start gap-2 mb-3">
+                    <BookOpen className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                    <p className="font-bold text-gray-800 break-keep">{book}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                    <span className="text-xs text-gray-500 font-medium">레벨 지정:</span>
+                    <select 
+                      className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2 outline-none font-bold cursor-pointer hover:bg-gray-100 transition-colors"
+                      value={customMap[book] || ""}
+                      onChange={(e) => handleAssignLevel(book, e.target.value)}
+                    >
+                      <option value="">선택 안함</option>
+                      {levels.map(l => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {Object.keys(customMap).length > 0 && (
+            <div className="mt-12 pt-8 border-t border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-500" /> 이미 지정된 교재 목록 ({Object.keys(customMap).length}개)
+              </h3>
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 max-h-64 overflow-y-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-500 uppercase bg-gray-100/50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 rounded-tl-lg">교재 이름</th>
+                      <th className="px-4 py-2 w-24">지정 레벨</th>
+                      <th className="px-4 py-2 rounded-tr-lg w-20 text-center">해제</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(customMap).map(([book, level]) => (
+                      <tr key={book} className="border-b border-gray-100 last:border-0 hover:bg-white transition-colors">
+                        <td className="px-4 py-3 font-medium text-gray-800">{book}</td>
+                        <td className="px-4 py-3 font-bold text-red-500">{level}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => handleAssignLevel(book, "")} className="text-gray-400 hover:text-red-500 transition-colors" title="지정 해제">
+                            <Trash2 className="w-4 h-4 mx-auto" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       
-      <div className="flex justify-center">
+      <div className="flex justify-center mt-6">
          <a href="/" className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 rounded-xl font-medium transition-colors flex items-center gap-2">
            대시보드로 돌아가기
          </a>

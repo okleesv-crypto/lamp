@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { fetchAllReportsAction, getMasterSheetLinksAction } from '@/lib/actions';
 import { getCachedReports, setCachedReports } from '@/lib/store';
 import Link from 'next/link';
-import { Search, BookOpen, User, Calendar, Plus, GraduationCap, Settings, ExternalLink, RefreshCw } from 'lucide-react';
+import { Search, BookOpen, User, Calendar, Plus, GraduationCap, Settings, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+import { findTextbookLevel } from '@/lib/textbooks';
 
 export default function Home() {
   const [reports, setReports] = useState([]);
@@ -152,37 +153,94 @@ export default function Home() {
           {filtered.map((report, idx) => (
             <Link href={`/student/${encodeURIComponent(btoa(report.url))}`} key={report.url + idx}>
               <div className="glass-card p-6 h-full flex flex-col group cursor-pointer animate-fade-in border border-gray-100" style={{ animationDelay: `${idx * 0.05}s` }}>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xl shadow-inner">
-                      {report.metaKoreanName.charAt(0)}
+                <div className="flex justify-between items-start mb-4 gap-2">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-14 h-14 rounded-full bg-red-100 flex flex-col items-center justify-center text-red-600 shadow-inner shrink-0 px-1">
+                      <span className="text-[11px] font-bold leading-tight truncate w-full text-center">{report.metaSchool}</span>
+                      <span className="text-[11px] font-bold leading-tight truncate w-full text-center">{report.metaGrade}</span>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-red-500 transition-colors">
-                        {report.metaKoreanName} <span className="text-sm font-normal text-gray-500">{report.metaEnglishName}</span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-2xl font-bold text-gray-900 group-hover:text-red-500 transition-colors flex items-end gap-2 truncate">
+                        <span className="truncate shrink-0">{report.metaKoreanName}</span> 
+                        <span className="text-base font-normal text-gray-500 mb-0.5 truncate">{report.metaEnglishName}</span>
                       </h3>
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                        <GraduationCap className="w-3 h-3" /> {report.metaSchool} {report.metaGrade}
-                      </p>
                     </div>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 text-green-700 px-3 py-1.5 rounded-3xl font-bold text-xs shrink-0 flex items-center whitespace-nowrap shadow-sm">
+                    총 {report.reportCount}개의 기록
                   </div>
                 </div>
                 
-                <div className="bg-gray-50 rounded-xl p-4 mb-4 flex-1 border border-gray-100">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="badge badge-primary flex items-center gap-1 text-xs px-2 py-0.5"><Calendar className="w-3 h-3"/> {report.period || '최근 리포트'}</span>
-                    <span className="badge badge-success px-2 py-0.5">총 {report.reportCount}개의 기록</span>
+                <div className="bg-gray-50 rounded-2xl p-5 mb-4 flex-1 border border-gray-100 shadow-inner mt-2">
+                  <div className="flex justify-between items-center mb-5">
+                    {report.type && report.type !== 'Report' ? (
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border shadow-sm ${report.type === 'Weekly' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
+                        {report.type}
+                      </span>
+                    ) : (
+                      <div />
+                    )}
+                    <span className="flex items-center gap-1.5 text-sm font-bold text-red-400 bg-red-50/80 px-3.5 py-1.5 rounded-full border border-red-100 shadow-sm"><Calendar className="w-4 h-4"/> {report.period || '최근 리포트'}</span>
                   </div>
-                  <p className="text-sm font-medium text-gray-800 flex items-center gap-2 mb-1 mt-2">
-                    <BookOpen className="w-4 h-4 text-red-400" /> 
-                    <span className="truncate">{report.book || '교재 미기재'}</span>
-                  </p>
-                  <p className="text-xs text-gray-500 ml-6 truncate">{report.pages}</p>
+                  
+                  <div className="flex gap-4">
+                    <BookOpen className="w-6 h-6 text-red-400 shrink-0 mt-1" />
+                    <div className="flex flex-col w-full overflow-hidden">
+                      <h4 className="text-[1.1rem] font-bold text-gray-800 leading-snug mb-3">
+                        {report.book || '교재 미기재'}
+                      </h4>
+                      
+                      <div className="mb-2">
+                        {(() => {
+                          const match = findTextbookLevel(report.book);
+                          if (match) {
+                            const colors = {
+                              L1: 'bg-green-100 text-green-700 border-green-200',
+                              L2: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                              L3: 'bg-teal-100 text-teal-700 border-teal-200',
+                              A1: 'bg-blue-100 text-blue-700 border-blue-200',
+                              A2: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                              A3: 'bg-violet-100 text-violet-700 border-violet-200',
+                              M1: 'bg-purple-100 text-purple-700 border-purple-200',
+                              M2: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200',
+                              M3: 'bg-pink-100 text-pink-700 border-pink-200',
+                              P1: 'bg-orange-100 text-orange-700 border-orange-200',
+                              P2: 'bg-amber-100 text-amber-700 border-amber-200',
+                              P3: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                              Adult: 'bg-gray-100 text-gray-700 border-gray-200'
+                            };
+                            const colorClass = colors[match.level] || 'bg-gray-100 text-gray-700 border-gray-200';
+                            
+                            return (
+                              <span 
+                                className={`px-2.5 py-1 text-sm font-bold rounded-lg border ${colorClass} shadow-sm inline-block group relative cursor-help transition-transform hover:scale-105`}
+                                title={`매칭된 표 교재명: ${match.matchedName}`}
+                              >
+                                {match.level}
+                              </span>
+                            );
+                          } else if (report.book) {
+                            return (
+                              <span 
+                                className="px-2.5 py-1 text-sm font-bold rounded-lg border bg-gray-100 text-gray-500 border-gray-200 shadow-sm inline-block cursor-help"
+                                title="정확한 매칭을 찾을 수 없습니다."
+                              >
+                                미분류
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      
+                      <p className="text-[13px] text-gray-500 truncate mt-1.5">{report.pages}</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-500 pt-3 border-t border-gray-100 mt-auto">
-                  <span className="flex items-center gap-1 font-medium"><User className="w-4 h-4 text-gray-400" /> {report.teacher} 선생님</span>
-                  <span className="text-red-500 font-medium group-hover:translate-x-1 transition-transform">모든 리포트 보기 →</span>
+                <div className="flex items-center justify-between text-sm text-gray-500 pt-4 border-t border-gray-100 mt-auto">
+                  <span className="flex items-center gap-1.5 font-bold"><User className="w-4 h-4 text-gray-400" /> {report.teacher} 선생님</span>
+                  <span className="text-red-500 font-bold group-hover:translate-x-1 transition-transform">모든 리포트 보기 →</span>
                 </div>
               </div>
             </Link>
